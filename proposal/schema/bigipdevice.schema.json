@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://f5acme.example.com/schema/bigipdevice.schema.json",
+  "title": "BigIPDevice",
+  "description": "Declares a managed BIG-IP appliance or HA cluster and the partitions on it that participate in ACME-driven cert lifecycle.",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": { "const": "f5acme.example.com/v1" },
+    "kind": { "const": "BigIPDevice" },
+    "metadata": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name":        { "$ref": "#/$defs/dnsLabel" },
+        "labels":      { "$ref": "#/$defs/labels" },
+        "annotations": { "$ref": "#/$defs/annotations" }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "required": ["host", "credentialsRef", "partitions"],
+      "additionalProperties": false,
+      "properties": {
+        "host":           { "type": "string", "format": "hostname" },
+        "port":           { "type": "integer", "minimum": 1, "maximum": 65535, "default": 443 },
+        "minTmosVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$", "default": "17.5.0" },
+        "credentialsRef": { "$ref": "#/$defs/credentialsRef" },
+        "partitions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/partitionName" }
+        },
+        "challengeResponder": {
+          "type": "object",
+          "required": ["type"],
+          "additionalProperties": false,
+          "properties": {
+            "type":        { "$ref": "#/$defs/challengeType" },
+            "listenerVS":  { "type": "string", "description": "Path to the virtual server that responds to HTTP-01 / TLS-ALPN-01." },
+            "dnsProvider": { "type": "string", "description": "Name of a DNS provider plugin recognized by the BIG-IP native ACME client (used when type is dns-01)." }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "type": { "const": "dns-01" } }, "required": ["type"] },
+              "then": { "required": ["dnsProvider"] }
+            },
+            {
+              "if": { "properties": { "type": { "enum": ["http-01", "tls-alpn-01"] } }, "required": ["type"] },
+              "then": { "required": ["listenerVS"] }
+            }
+          ]
+        },
+        "haPeer": {
+          "type": "string",
+          "description": "metadata.name of the BigIPDevice that is the HA peer of this device, if any."
+        },
+        "tags": { "$ref": "#/$defs/labels" }
+      }
+    }
+  },
+  "$defs": {
+    "dnsLabel": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+      "maxLength": 63
+    },
+    "partitionName": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+$",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "labels": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "maxLength": 253 }
+    },
+    "annotations": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "challengeType": {
+      "enum": ["http-01", "dns-01", "tls-alpn-01"]
+    },
+    "credentialsRef": {
+      "type": "object",
+      "required": ["backend", "path"],
+      "additionalProperties": false,
+      "properties": {
+        "backend": { "enum": ["vault", "aws-sm", "azure-kv"] },
+        "path":    { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

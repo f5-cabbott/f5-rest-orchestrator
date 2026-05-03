@@ -1,0 +1,24 @@
+apiVersion: f5acme.example.com/v1
+kind: ManagedCertificate
+metadata:
+  name: vip-app1
+  labels:
+    env: prod
+    tenant: tenant-a
+spec:
+  deviceRef: bigip-dc1-01
+  partition: tenant-a
+  identifiers:
+    - app1.example.com
+    - app1-alt.example.com
+  keyType: ecdsa-p256
+  challenge: dns-01
+  dnsProvider: route53
+  renewBeforeDays: 30
+  policyTemplate: internal-tls-server
+  bindings:
+    - kind: clientSSLProfile
+      name: /tenant-a/app1-clientssl
+    - kind: clientSSLProfile
+      name: /tenant-a/app1-alt-clientssl
+  retainOldCertDays: 7

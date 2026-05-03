@@ -1,0 +1,23 @@
+apiVersion: f5acme.example.com/v1
+kind: BigIPDevice
+metadata:
+  name: bigip-dc1-01
+  labels:
+    env: prod
+    datacenter: dc1
+    cluster: ha-pair-01
+spec:
+  host: bigip-dc1-01.mgmt.example.com
+  port: 443
+  minTmosVersion: "17.5.0"
+  credentialsRef:
+    backend: vault
+    path: kv/f5acme/prod/bigip-dc1-01/api
+  partitions:
+    - Common
+    - tenant-a
+    - tenant-b
+  challengeResponder:
+    type: dns-01
+    dnsProvider: route53
+  haPeer: bigip-dc1-02

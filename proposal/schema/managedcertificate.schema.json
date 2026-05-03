@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://f5acme.example.com/schema/managedcertificate.schema.json",
+  "title": "ManagedCertificate",
+  "description": "Declares a single certificate to be issued and renewed by the BIG-IP native ACMEv2 client against the configured Keyfactor AnyCA Gateway ACME endpoint, then bound to one or more SSL profiles.",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": { "const": "f5acme.example.com/v1" },
+    "kind": { "const": "ManagedCertificate" },
+    "metadata": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name":        { "$ref": "#/$defs/dnsLabel" },
+        "labels":      { "$ref": "#/$defs/labels" },
+        "annotations": { "$ref": "#/$defs/annotations" }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "required": ["deviceRef", "partition", "identifiers", "bindings"],
+      "additionalProperties": false,
+      "properties": {
+        "deviceRef":  { "$ref": "#/$defs/dnsLabel", "description": "metadata.name of the BigIPDevice this cert lives on." },
+        "partition":  { "$ref": "#/$defs/partitionName" },
+        "identifiers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/identifier" }
+        },
+        "keyType":         { "$ref": "#/$defs/keyType" },
+        "challenge":       { "$ref": "#/$defs/challengeType" },
+        "dnsProvider":     { "type": "string", "description": "Required only when challenge is dns-01." },
+        "renewBeforeDays": { "type": "integer", "minimum": 1, "maximum": 365 },
+        "policyTemplate":  { "type": "string", "minLength": 1, "description": "Maps to a Keyfactor cert template via gateway ACME plugin policy." },
+        "bindings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/binding" }
+        },
+        "retainOldCertDays": { "type": "integer", "minimum": 0, "maximum": 365, "default": 7 }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "challenge": { "const": "dns-01" } },
+            "required": ["challenge"]
+          },
+          "then": { "required": ["dnsProvider"] }
+        },
+        {
+          "if": {
+            "properties": {
+              "challenge": { "enum": ["http-01", "tls-alpn-01"] },
+              "identifiers": {
+                "contains": { "type": "string", "pattern": "^\\*\\." }
+              }
+            },
+            "required": ["challenge", "identifiers"]
+          },
+          "then": {
+            "not": {},
+            "description": "Wildcard identifiers require challenge type dns-01."
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "dnsLabel": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+      "maxLength": 63
+    },
+    "partitionName": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.-]+$",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "labels": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "maxLength": 253 }
+    },
+    "annotations": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "keyType": {
+      "enum": ["rsa-2048", "rsa-3072", "rsa-4096", "ecdsa-p256", "ecdsa-p384"]
+    },
+    "challengeType": {
+      "enum": ["http-01", "dns-01", "tls-alpn-01"]
+    },
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 253,
+      "pattern": "^(\\*\\.)?([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?\\.)+[A-Za-z]{2,}$"
+    },
+    "binding": {
+      "type": "object",
+      "required": ["kind", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["clientSSLProfile", "serverSSLProfile"] },
+        "name": { "type": "string", "pattern": "^/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", "description": "Fully qualified profile path: /<partition>/<name>." }
+      }
+    }
+  }
+}

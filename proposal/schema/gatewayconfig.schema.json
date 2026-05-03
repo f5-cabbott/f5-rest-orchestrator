@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://f5acme.example.com/schema/gatewayconfig.schema.json",
+  "title": "GatewayConfig",
+  "description": "Per-environment configuration for the Keyfactor AnyCA Gateway REST ACME endpoint and EAB policy.",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": { "const": "f5acme.example.com/v1" },
+    "kind": { "const": "GatewayConfig" },
+    "metadata": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "$ref": "#/$defs/dnsLabel" },
+        "labels": { "$ref": "#/$defs/labels" },
+        "annotations": { "$ref": "#/$defs/annotations" }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "required": ["gateway", "defaults", "eab"],
+      "additionalProperties": false,
+      "properties": {
+        "gateway": {
+          "type": "object",
+          "required": ["directoryURL", "adminAPI"],
+          "additionalProperties": false,
+          "properties": {
+            "directoryURL": { "type": "string", "format": "uri", "pattern": "^https://" },
+            "adminAPI":     { "type": "string", "format": "uri", "pattern": "^https://" },
+            "caBundle":     { "$ref": "#/$defs/secretRef" },
+            "adminCredentialsRef": { "$ref": "#/$defs/credentialsRef" },
+            "requestTimeoutSeconds": { "type": "integer", "minimum": 1, "maximum": 600, "default": 30 }
+          }
+        },
+        "defaults": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "keyType":          { "$ref": "#/$defs/keyType" },
+            "renewBeforeDays":  { "type": "integer", "minimum": 1, "maximum": 365, "default": 30 },
+            "challenge":        { "$ref": "#/$defs/challengeType" },
+            "contactEmail":     { "type": "string", "format": "email" }
+          }
+        },
+        "eab": {
+          "type": "object",
+          "required": ["scope", "secretBackend", "secretPathTemplate"],
+          "additionalProperties": false,
+          "properties": {
+            "scope":              { "enum": ["per-device", "per-partition", "per-environment"] },
+            "rotationDays":       { "type": "integer", "minimum": 30, "maximum": 3650, "default": 365 },
+            "secretBackend":      { "enum": ["vault", "aws-sm", "azure-kv"] },
+            "secretPathTemplate": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "dnsLabel": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+      "maxLength": 63
+    },
+    "labels": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "maxLength": 253 }
+    },
+    "annotations": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "keyType": {
+      "enum": ["rsa-2048", "rsa-3072", "rsa-4096", "ecdsa-p256", "ecdsa-p384"]
+    },
+    "challengeType": {
+      "enum": ["http-01", "dns-01", "tls-alpn-01"]
+    },
+    "secretRef": {
+      "type": "string",
+      "pattern": "^secret://(vault|aws-sm|azure-kv)/.+"
+    },
+    "credentialsRef": {
+      "type": "object",
+      "required": ["backend", "path"],
+      "additionalProperties": false,
+      "properties": {
+        "backend": { "enum": ["vault", "aws-sm", "azure-kv"] },
+        "path":    { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

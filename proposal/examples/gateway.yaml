@@ -1,0 +1,25 @@
+apiVersion: f5acme.example.com/v1
+kind: GatewayConfig
+metadata:
+  name: prod
+  labels:
+    env: prod
+spec:
+  gateway:
+    directoryURL: https://acme-gw.example.com/acme/v2/directory
+    adminAPI: https://acme-gw.example.com/api/v1
+    caBundle: secret://vault/kv/f5acme/prod/gateway/ca-bundle
+    adminCredentialsRef:
+      backend: vault
+      path: kv/f5acme/prod/gateway/admin
+    requestTimeoutSeconds: 30
+  defaults:
+    keyType: ecdsa-p256
+    renewBeforeDays: 30
+    challenge: dns-01
+    contactEmail: pki-ops@example.com
+  eab:
+    scope: per-partition
+    rotationDays: 365
+    secretBackend: vault
+    secretPathTemplate: "kv/f5acme/{env}/{device}/{partition}/eab"
